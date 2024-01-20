@@ -1,9 +1,9 @@
 import sys
 import random
-import requests
 import pygame
 import pygame_menu
 import pygamepopup
+
 from pygamepopup.components import Button, InfoBox, TextElement
 from pygamepopup.menu_manager import MenuManager
 from quiz_data import *
@@ -12,9 +12,9 @@ pygame.init()
 pygamepopup.init()
 
 pygame.mixer.init()
-pygame.mixer.music.load('bgm.ogg')
+pygame.mixer.music.load('assets/music/bgm.ogg')
 pygame.mixer.music.play(-1)
-pygame.display.set_caption("QNA")
+pygame.display.set_caption("Quackers Adventure")
 
 SURFACE_COLOR = (255, 255, 255)
 WIDTH = 800
@@ -25,7 +25,7 @@ screen = pygame.display.set_mode(size)
 clock = pygame.time.Clock()
 font = pygame.font.Font(None, 36)
 
-background_image = pygame.image.load("map.png")
+background_image = pygame.image.load("assets/bg/map.png")
 background_rect = background_image.get_rect()
 
 all_sprites_list = pygame.sprite.Group()
@@ -94,7 +94,7 @@ class Bullet(pygame.sprite.Sprite):
     def __init__(self, start_x, start_y, dest_x, dest_y):
         super().__init__()
 
-        self.image = pygame.image.load('bullet.png')
+        self.image = pygame.image.load('assets/sprites/bullet.png')
         self.rect = self.image.get_rect()
         self.rect.x = start_x
         self.rect.y = start_y
@@ -115,7 +115,7 @@ class Bullet(pygame.sprite.Sprite):
             self.rect.y += self.speed * dy / distance
 
 # Load player sprites
-player = Sprite([f"player/tile{i:03d}.png" for i in range(12)], 30, 30)
+player = Sprite([f"assets/sprites/player/tile{i:03d}.png" for i in range(12)], 30, 30)
 player.rect.x = 200
 player.rect.y = 300
 player.life = 3  # Initialize main character's life
@@ -137,6 +137,7 @@ def insight_menu(item):
         ],
         width=500,
         identifier=INSIGHT_MENU_ID,
+        close_button_text='Continue (Q)'
     )
     return insight_menu
 
@@ -172,7 +173,8 @@ def quiz_menu(dict, player):
             ],
         ],
         width=800,
-        identifier=INSIGHT_MENU_ID
+        identifier=INSIGHT_MENU_ID,
+        has_close_button=False
     )
     return quiz_menu
 
@@ -191,7 +193,7 @@ def sound_effect(sound_file):
 # Function to respawn zombies
 def respawn_zombie():
     enemy = random.randint(0, 2)
-    zombie = Sprite(["enemies/{:d}/".format(enemy) + f"tile{i:03d}.png" for i in range(12)], 34, 30)
+    zombie = Sprite(["assets/sprites/enemies/{:d}/".format(enemy) + f"tile{i:03d}.png" for i in range(12)], 34, 30)
     
     # Ensure the zombie spawns a decent distance away from the player
     min_distance = 200
@@ -212,6 +214,19 @@ def respawn_zombie():
 def game_over_screen():
     game_over_text = font.render("QUACKERS HAS DIED", True, (255, 0, 0))
     screen.blit(game_over_text, ((WIDTH - game_over_text.get_width()) // 2, (HEIGHT - game_over_text.get_height()) // 2))
+
+def congratulations_screen():
+    rainbow_colors = [(255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 255, 0), (0, 0, 255), (75, 0, 130), (128, 0, 128)]
+
+    # Fill the screen with a rainbow pattern
+    for i, color in enumerate(rainbow_colors):
+        rect = pygame.Rect(0, i * (HEIGHT // len(rainbow_colors)), WIDTH, HEIGHT // len(rainbow_colors))
+        pygame.draw.rect(screen, color, rect)
+
+    # Display the congratulations text on top
+    congrats_text = font.render("Congratulations! Quackers is now financially literate :)", True, (0, 0, 0))
+    screen.blit(congrats_text, ((WIDTH - congrats_text.get_width()) // 2, (HEIGHT - congrats_text.get_height()) // 2))
+
 
 # Display a menu
 def show_menu(menu):
@@ -234,7 +249,7 @@ def start():
     game_state = "running" # "running", "paused", or "over"
     exit_game = False
     menu_open = False
-    insights = txt_to_list('insights.txt')
+    insights = txt_to_list('assets/insights.txt')
     quiz_count = 1
 
     # Game Loop
@@ -247,7 +262,7 @@ def start():
                     exit_game = True
                 elif event.key == pygame.K_SPACE and game_state == "running":
                     if len(zombie_group) > 0:
-                        sound_effect('quack.mp3')
+                        sound_effect('assets/music/quack.mp3')
                         target_zombie = random.choice(zombie_group.sprites())
                         bullet = Bullet(player.rect.x, player.rect.y, target_zombie.rect.x, target_zombie.rect.y)
                         bullet_list.add(bullet)
@@ -260,6 +275,13 @@ def start():
                 elif menu_open and event.key == pygame.K_q and menu_manager.active_menu.identifier == INSIGHT_MENU_ID:
                     game_state = "running"
                     menu_open = False
+                    menu_manager.close_active_menu()
+            elif event.type == pygame.MOUSEMOTION:
+                menu_manager.motion(event.pos)
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1 or event.button == 3:
+                    game_state = "running"
+                    menu_manager.click(event.button, event.pos)
                     menu_manager.close_active_menu()
 
         keys = pygame.key.get_pressed()
@@ -318,11 +340,21 @@ def start():
 
         # Display zombie kill count
         zombie_life_text = font.render(f'Zombies Killed: {zombie_kills}', True, (255, 0, 0))
-        screen.blit(zombie_life_text, (10, 50))
+        screen.blit(zombie_life_text, (10, 40))
 
-        if menu_open:
+        # Controls
+        controls_1 = font.render('Arrow Keys: Move', True, (0, 0, 255))
+        screen.blit(controls_1, (580, 10))
+        controls_2 = font.render('Spacebar: Quack', True, (0, 0, 255))
+        screen.blit(controls_2, (580, 40))
+        controls_3 = font.render('Esc/Q: Pause', True, (0, 0, 255))
+        screen.blit(controls_3, (580, 70))
+
+        if menu_open and menu_manager.active_menu is not None:
             if menu_manager.active_menu.identifier == INSIGHT_MENU_ID or menu_manager.active_menu.identifier == QUIZ_MENU_ID:
                 game_state = "paused"
+            else:
+                game_state = "running"
 
         if game_state == "paused":
             # Display pause menu
@@ -347,6 +379,15 @@ def start():
             show_menu(quiz_menu(quiz_data.get(quiz_count),player))
             quiz_count += 1
             zombie_kills += 1
+        
+        if quiz_count == 10 and menu_manager.active_menu is None:
+            zombie_kills = 0
+            congratulations_screen()
+            pygame.display.flip()
+            clock.tick(0)
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_x:
+                    exit_game = True
 
         pygame.display.flip()
         menu_manager.display()
@@ -358,7 +399,7 @@ my_theme = pygame_menu.themes.THEME_ORANGE.copy()
 my_theme.widget_font = pygame_menu.font.FONT_8BIT
 
 myimage = pygame_menu.baseimage.BaseImage(
-    image_path='menu.png',
+    image_path='assets/bg/menu.png',
     drawing_mode=pygame_menu.baseimage.IMAGE_MODE_REPEAT_XY)
 
 my_theme.background_color = myimage
