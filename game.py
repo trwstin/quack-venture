@@ -66,11 +66,10 @@ class Sprite(pygame.sprite.Sprite):
         self.image = self.images[self.frame]
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, color, width, height, start_x, start_y, dest_x, dest_y):
+    def __init__(self, start_x, start_y, dest_x, dest_y):
         super().__init__()
 
-        self.image = pygame.Surface([width, height])
-        self.image.fill(color)
+        self.image = pygame.image.load('bullet.png')
         self.rect = self.image.get_rect()
         self.rect.x = start_x
         self.rect.y = start_y
