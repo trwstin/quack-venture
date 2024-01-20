@@ -2,23 +2,22 @@ import pygame
 import sys
 import random
 
+pygame.init()
+
 # Global Variables
 SURFACE_COLOR = (255, 255, 255)  # Background color (white)
-WIDTH = 500
-HEIGHT = 500
+WIDTH = 800
+HEIGHT = 600
 
 # Object class
 class Sprite(pygame.sprite.Sprite):
-    def __init__(self, color, height, width):
+    def __init__(self, image_paths, width, height):
         super().__init__()
 
-        self.image = pygame.Surface([width, height])
-        self.image.fill(SURFACE_COLOR)
-
-        pygame.draw.rect(self.image,
-                         color,
-                         pygame.Rect(0, 0, width, height))
-
+        self.images = [pygame.image.load(path) for path in image_paths]
+        self.images = [pygame.transform.scale(image, (width, height)) for image in self.images]
+        self.frame = 0
+        self.image = self.images[self.frame]
         self.rect = self.image.get_rect()
 
     def moveRight(self, pixels):
@@ -62,6 +61,9 @@ class Sprite(pygame.sprite.Sprite):
         else:
             self.moveRight(speed)
 
+    def update(self):
+        self.frame = (self.frame + 1) % len(self.images)
+        self.image = self.images[self.frame]
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, color, width, height, start_x, start_y, dest_x, dest_y):
@@ -69,7 +71,6 @@ class Bullet(pygame.sprite.Sprite):
 
         self.image = pygame.Surface([width, height])
         self.image.fill(color)
-
         self.rect = self.image.get_rect()
         self.rect.x = start_x
         self.rect.y = start_y
@@ -94,15 +95,20 @@ pygame.init()
 
 size = (WIDTH, HEIGHT)
 screen = pygame.display.set_mode(size)
+pygame.display.set_caption("QNA")
 
 all_sprites_list = pygame.sprite.Group()
 
-player = Sprite((255, 0, 0), 20, 30)  # red sprite
+background_image = pygame.image.load("map.png")
+background_rect = background_image.get_rect()
+
+# Use a list of image paths for animated sprites
+player = Sprite([f"player/tile{i:03d}.png" for i in range(12)], 30, 30)
 player.rect.x = 200
 player.rect.y = 300
 player.life = 3  # Initialize main character's life
 
-zombie = Sprite((0, 255, 0), 20, 30)  # green zombie sprite
+zombie = Sprite([f"enemies/tile{i:03d}.png" for i in range(12)], 30, 30)
 zombie.rect.x = 100
 zombie.rect.y = 100
 zombie.life = 3  # Initialize zombie's life
@@ -165,6 +171,8 @@ while not exit_game:
     all_sprites_list.update()
 
     screen.fill(SURFACE_COLOR)
+    
+    screen.blit(background_image, background_rect)
     all_sprites_list.draw(screen)
 
     # Display main character's remaining life
