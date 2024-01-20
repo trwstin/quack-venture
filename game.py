@@ -1,8 +1,7 @@
 import pygame
+import pygame_menu
 import sys
 import random
-
-pygame.init()
 
 # Global Variables
 SURFACE_COLOR = (255, 255, 255)  # Background color (white)
@@ -49,17 +48,17 @@ class Sprite(pygame.sprite.Sprite):
             self.rect.bottom = HEIGHT
             self.moveBack(10)
 
-    def moveRandom(self):
+    def moveRandom(self, target_x, target_y):
         direction = random.choice(['up', 'down', 'left', 'right'])
-        speed = 0.5
+        speed = 10
 
-        if direction == 'up':
+        if direction == 'up' and self.rect.y > target_y:
             self.moveBack(speed)
-        elif direction == 'down':
+        elif direction == 'down' and self.rect.y < target_y:
             self.moveForward(speed)
-        elif direction == 'left':
+        elif direction == 'left' and self.rect.x > target_x:
             self.moveLeft(speed)
-        else:
+        elif direction == 'right' and self.rect.x < target_x:
             self.moveRight(speed)
 
     def update(self):
@@ -92,6 +91,10 @@ class Bullet(pygame.sprite.Sprite):
 
 pygame.init()
 
+pygame.mixer.init()
+pygame.mixer.music.load('bgm.ogg')
+pygame.mixer.music.play(-1)
+
 size = (WIDTH, HEIGHT)
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption("QNA")
@@ -110,108 +113,174 @@ player.life = 3  # Initialize main character's life
 
 all_sprites_list.add(player)
 
-game_state = "running"  # "running", "paused", or "over"
-exit_game = False
 clock = pygame.time.Clock()
 
 font = pygame.font.Font(None, 36)  # Font for displaying text
 
+def sound_effect(sound_file):
+    pygame.mixer.init()
+    pygame.mixer.Sound(sound_file)
+    pygame.mixer.Sound(sound_file).play()
+
 # Function to respawn zombies
 def respawn_zombie():
-    zombie = Sprite([f"enemies/tile{i:03d}.png" for i in range(12)], 30, 30)
-    zombie.rect.x = random.randint(50, WIDTH - 50)
-    zombie.rect.y = random.randint(50, HEIGHT - 50)
+    enemy = random.randint(0, 2)
+    zombie = Sprite(["enemies/{:d}/".format(enemy) + f"tile{i:03d}.png" for i in range(12)], 34, 30)
+    
+    # Ensure the zombie spawns a decent distance away from the player
+    min_distance = 200
+    while True:
+        zombie.rect.x = random.randint(100, WIDTH - 50)
+        zombie.rect.y = random.randint(100, HEIGHT - 50)
+        
+        # Calculate the distance between the zombie and the player
+        distance = ((zombie.rect.x - player.rect.x) ** 2 + (zombie.rect.y - player.rect.y) ** 2) ** 0.5
+        
+        if distance >= min_distance:
+            break
+
     all_sprites_list.add(zombie)
     zombie_group.add(zombie)
 
-# Initial zombie respawn
-for _ in range(5):  # Spawn 5 zombies initially
-    respawn_zombie()
+# Function for game over screen
+def game_over_screen():
+    game_over_text = font.render("QUACKERS DIED", True, (255, 0, 0))
+    screen.blit(game_over_text, ((WIDTH - game_over_text.get_width()) // 2, (HEIGHT - game_over_text.get_height()) // 2))
 
-bullet_list = pygame.sprite.Group()
 
-zombie_kills = 0
-while not exit_game:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            exit_game = True
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_x:
+def start():
+
+    # Initial zombie respawn
+    NUM_ZOMBIES = 7
+    for _ in range(NUM_ZOMBIES):  # Spawn 5 zombies initially
+        respawn_zombie()
+
+    bullet_list = pygame.sprite.Group()
+
+    zombie_kills = 0
+    game_state = "running"  # "running", "paused", or "over"
+    exit_game = False
+
+    # Game Loop
+    while not exit_game:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
                 exit_game = True
-            elif event.key == pygame.K_SPACE and game_state == "running":
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_x:
+                    exit_game = True
+                elif event.key == pygame.K_SPACE and game_state == "running":
 
-                # Shoot a bullet towards a random zombie
-                if len(zombie_group) > 0:
-                    target_zombie = random.choice(zombie_group.sprites())
-                    bullet = Bullet(player.rect.x, player.rect.y, target_zombie.rect.x, target_zombie.rect.y)
-                    bullet_list.add(bullet)
-                    all_sprites_list.add(bullet)
-            elif event.key == pygame.K_ESCAPE:
-                if game_state == "running":
-                    game_state = "paused"
-                elif game_state == "paused":
-                    game_state = "running"
+                    # Shoot a bullet towards a random zombie
+                    if len(zombie_group) > 0:
+                        sound_effect('quack.mp3')
+                        target_zombie = random.choice(zombie_group.sprites())
+                        bullet = Bullet(player.rect.x, player.rect.y, target_zombie.rect.x, target_zombie.rect.y)
+                        bullet_list.add(bullet)
+                        all_sprites_list.add(bullet)
+                elif event.key == pygame.K_ESCAPE:
+                    if game_state == "running":
+                        game_state = "paused"
+                    elif game_state == "paused":
+                        game_state = "running"
 
-    keys = pygame.key.get_pressed()
-    if game_state == "running":
-        if keys[pygame.K_LEFT]:
-            player.moveLeft(10)
-        if keys[pygame.K_RIGHT]:
-            player.moveRight(10)
-        if keys[pygame.K_DOWN]:
-            player.moveForward(10)
-        if keys[pygame.K_UP]:
-            player.moveBack(10)
-        player.collision_wall()
+        keys = pygame.key.get_pressed()
+        if game_state == "running":
+            if keys[pygame.K_LEFT]:
+                player.moveLeft(10)
+            if keys[pygame.K_RIGHT]:
+                player.moveRight(10)
+            if keys[pygame.K_DOWN]:
+                player.moveForward(10)
+            if keys[pygame.K_UP]:
+                player.moveBack(10)
+            player.collision_wall()
 
-    # Update bullets
-    bullet_list.update()
+            # Update zombies
+            for zombie in zombie_group:
+                zombie.moveRandom(player.rect.x, player.rect.y)
+                zombie.collision_wall()
 
-    # Check for collision between bullets and zombies
-    collisions = pygame.sprite.groupcollide(zombie_group, bullet_list, False, True)
-    
+        # Update bullets
+        bullet_list.update()
 
-    for zombie in collisions.keys():
-        print("Zombie hit by bullet!")
-        zombie.life -= 1
-        if zombie.life <= 0:
-            zombie.kill()  # Remove the zombie if life is 0
-            zombie_kills += 1
-            respawn_zombie()  # Respawn a new zombie
+        # Check for collision between bullets and zombies
+        collisions = pygame.sprite.groupcollide(zombie_group, bullet_list, False, True)
 
-    # Check for collision between player and zombies
-    if pygame.sprite.spritecollide(player, zombie_group, False):
-        print("Player collided with Zombie!")
-        player.life -= 1  # Decrease player's life
-        if player.life <= 0:
-            game_state = "over"
+        for zombie in collisions.keys():
+            print("Zombie hit by bullet!")
+            zombie.life -= 1
+            if zombie.life <= 0:
+                zombie.kill()  # Remove the zombie if life is 0
+                zombie_kills += 1
+                respawn_zombie()  # Respawn a new zombie
 
-    all_sprites_list.update()
+        # Check for collision between player and zombies
+        collided_zombies = pygame.sprite.spritecollide(player, zombie_group, False)
+        for zombie in collided_zombies:
+            print("Player collided with Zombie!")
+            player.life -= 1  # Decrease player's life
+            if player.life <= 0:
+                game_state = "over"
+            else:
+                # If player is still alive, instantly kill the zombie
+                zombie.life = 0
+                zombie.kill()
+                zombie_kills += 1
+                respawn_zombie()  # Respawn a new zombie
 
-    screen.fill(SURFACE_COLOR)
-    
-    screen.blit(background_image, background_rect)
-    all_sprites_list.draw(screen)
+        all_sprites_list.update()
 
-    # Display main character's remaining life
-    player_life_text = font.render(f'Player Life: {max(0, player.life)}', True, (255, 0, 0))
-    screen.blit(player_life_text, (10, 10))
+        screen.fill(SURFACE_COLOR)
 
-    # Display zombie kill count
-    zombie_life_text = font.render(f'Zombie Killed: { zombie_kills }', True, (255, 0, 0))
-    screen.blit(zombie_life_text, (10, 30))
+        screen.blit(background_image, background_rect)
+        all_sprites_list.draw(screen)
 
-    if game_state == "paused":
-        # Display pause menu
-        pause_text = font.render("Game Paused, Press Esc to Continue", True, (0, 0, 0))
-        screen.blit(pause_text, ((WIDTH - pause_text.get_width()) // 2, (HEIGHT - pause_text.get_height()) // 2))
+        # Display main character's remaining life
+        player_life_text = font.render(f'Quackers HP: {max(0, player.life)}', True, (0, 255, 0))
+        screen.blit(player_life_text, (10, 10))
 
-    pygame.display.flip()
-    clock.tick(30)  # Adjusted frame rate for smoother motion
+        # Display zombie kill count
+        zombie_life_text = font.render(f'Doomies Killed: {zombie_kills}', True, (255, 0, 0))
+        screen.blit(zombie_life_text, (10, 50))
 
-    if game_state == "over":
-        pygame.time.delay(2000)  # Delay for 2000 milliseconds (2 seconds)
-        exit_game = True
+        if game_state == "paused":
+            # Display pause menu
+            pause_text = font.render("Game Paused, Press Esc to Continue", True, (0, 0, 0))
+            screen.blit(pause_text, ((WIDTH - pause_text.get_width()) // 2, (HEIGHT - pause_text.get_height()) // 2))
+
+        if game_state == "over":
+            game_over_screen()
+            pygame.display.flip()
+            clock.tick(1)  # Update the screen at a slower rate
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_x:
+                    exit_game = True
+
+        pygame.display.flip()
+        clock.tick(30)  # Adjusted frame rate for smoother motion
+
+        if game_state == "over":
+            pygame.time.delay(2000)  # Delay for 2000 milliseconds (2 seconds)
+            exit_game = True
+
+my_theme = pygame_menu.themes.THEME_ORANGE.copy()
+my_theme.widget_font = pygame_menu.font.FONT_8BIT
+
+myimage = pygame_menu.baseimage.BaseImage(
+    image_path='menu.png',
+    drawing_mode=pygame_menu.baseimage.IMAGE_MODE_REPEAT_XY)
+
+my_theme.background_color = myimage
+my_theme.title_bar_style = pygame_menu.widgets.MENUBAR_STYLE_NONE
+
+menu = pygame_menu.Menu('', 800, 600,
+                       theme=my_theme)
+
+menu.add.label('Quackers\nAdventure\n')
+menu.add.button('Play', start)
+menu.add.button('Quit', pygame_menu.events.EXIT)
+menu.mainloop(screen)
 
 pygame.quit()
 sys.exit()
