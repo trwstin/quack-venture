@@ -146,6 +146,11 @@ while not exit_game:
                     bullet = Bullet(player.rect.x, player.rect.y, target_zombie.rect.x, target_zombie.rect.y)
                     bullet_list.add(bullet)
                     all_sprites_list.add(bullet)
+            elif event.key == pygame.K_ESCAPE:
+                if game_state == "running":
+                    game_state = "paused"
+                elif game_state == "paused":
+                    game_state = "running"
 
     keys = pygame.key.get_pressed()
     if game_state == "running":
