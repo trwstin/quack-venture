@@ -1,14 +1,36 @@
-import pygame
-import pygame_menu
 import sys
 import random
+import requests
+import pygame
+import pygame_menu
+import pygamepopup
+from pygamepopup.components import Button, InfoBox, TextElement
+from pygamepopup.menu_manager import MenuManager
+from quiz_data import *
 
-# Global Variables
-SURFACE_COLOR = (255, 255, 255)  # Background color (white)
+pygame.init()
+pygamepopup.init()
+
+pygame.mixer.init()
+pygame.mixer.music.load('bgm.ogg')
+pygame.mixer.music.play(-1)
+pygame.display.set_caption("QNA")
+
+SURFACE_COLOR = (255, 255, 255)
 WIDTH = 800
 HEIGHT = 600
 
-# Object class
+size = (WIDTH, HEIGHT)
+screen = pygame.display.set_mode(size)
+clock = pygame.time.Clock()
+font = pygame.font.Font(None, 36)
+
+background_image = pygame.image.load("map.png")
+background_rect = background_image.get_rect()
+
+all_sprites_list = pygame.sprite.Group()
+zombie_group = pygame.sprite.Group()
+
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, image_paths, width, height):
         super().__init__()
@@ -31,6 +53,9 @@ class Sprite(pygame.sprite.Sprite):
 
     def moveBack(self, pixels):
         self.rect.y -= pixels
+    
+    def addLife(self):
+        self.life += 1
 
     def collision_wall(self):
         # Add collision detection with screen edges
@@ -89,23 +114,7 @@ class Bullet(pygame.sprite.Sprite):
             self.rect.x += self.speed * dx / distance
             self.rect.y += self.speed * dy / distance
 
-pygame.init()
-
-pygame.mixer.init()
-pygame.mixer.music.load('bgm.ogg')
-pygame.mixer.music.play(-1)
-
-size = (WIDTH, HEIGHT)
-screen = pygame.display.set_mode(size)
-pygame.display.set_caption("QNA")
-
-all_sprites_list = pygame.sprite.Group()
-zombie_group = pygame.sprite.Group()
-
-background_image = pygame.image.load("map.png")
-background_rect = background_image.get_rect()
-
-# Use a list of image paths for animated sprites
+# Load player sprites
 player = Sprite([f"player/tile{i:03d}.png" for i in range(12)], 30, 30)
 player.rect.x = 200
 player.rect.y = 300
@@ -113,10 +122,67 @@ player.life = 3  # Initialize main character's life
 
 all_sprites_list.add(player)
 
-clock = pygame.time.Clock()
+menu_manager = MenuManager(screen)
 
-font = pygame.font.Font(None, 36)  # Font for displaying text
+INSIGHT_MENU_ID = "insight"
+def insight_menu(item):
+    insight_menu = InfoBox(
+        "INSIGHT",
+        [
+            [
+                TextElement(
+                    text=item
+                )
+            ]
+        ],
+        width=500,
+        identifier=INSIGHT_MENU_ID,
+    )
+    return insight_menu
 
+QUIZ_MENU_ID = "quiz"
+def quiz_menu(dict, player):
+    quiz_menu = InfoBox(
+        dict.get('question'),
+        [
+            [
+                Button(
+                        title=dict.get('answer'),
+                        callback=lambda: player.addLife(),
+                        # Correct Menu Popup
+                )
+            ],
+            [
+                Button(
+                        title=dict.get('fake1'),
+                        callback=lambda: respawn_zombie(),
+                )
+            ],
+            [
+                Button(
+                        title=dict.get('fake2'),
+                        callback=lambda: respawn_zombie(),
+                )
+            ],
+            [
+                Button(
+                        title=dict.get('fake3'),
+                        callback=lambda: respawn_zombie(),
+                )
+            ],
+        ],
+        width=800,
+        identifier=INSIGHT_MENU_ID
+    )
+    return quiz_menu
+
+# For insights
+def txt_to_list(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.read().splitlines()
+    return lines
+
+# Function for sound effects
 def sound_effect(sound_file):
     pygame.mixer.init()
     pygame.mixer.Sound(sound_file)
@@ -144,22 +210,32 @@ def respawn_zombie():
 
 # Function for game over screen
 def game_over_screen():
-    game_over_text = font.render("QUACKERS DIED", True, (255, 0, 0))
+    game_over_text = font.render("QUACKERS HAS DIED", True, (255, 0, 0))
     screen.blit(game_over_text, ((WIDTH - game_over_text.get_width()) // 2, (HEIGHT - game_over_text.get_height()) // 2))
 
+# Display a menu
+def show_menu(menu):
+    if menu_manager.active_menu is not None:
+        if menu_manager.active_menu.identifier == menu.identifier:
+            return
+        else:
+            menu_manager.close_active_menu()
+    menu_manager.open_menu(menu)
 
 def start():
-
     # Initial zombie respawn
     NUM_ZOMBIES = 7
-    for _ in range(NUM_ZOMBIES):  # Spawn 5 zombies initially
+    for _ in range(NUM_ZOMBIES): # Spawn 5 zombies initially
         respawn_zombie()
 
     bullet_list = pygame.sprite.Group()
 
     zombie_kills = 0
-    game_state = "running"  # "running", "paused", or "over"
+    game_state = "running" # "running", "paused", or "over"
     exit_game = False
+    menu_open = False
+    insights = txt_to_list('insights.txt')
+    quiz_count = 1
 
     # Game Loop
     while not exit_game:
@@ -170,8 +246,6 @@ def start():
                 if event.key == pygame.K_x:
                     exit_game = True
                 elif event.key == pygame.K_SPACE and game_state == "running":
-
-                    # Shoot a bullet towards a random zombie
                     if len(zombie_group) > 0:
                         sound_effect('quack.mp3')
                         target_zombie = random.choice(zombie_group.sprites())
@@ -183,6 +257,10 @@ def start():
                         game_state = "paused"
                     elif game_state == "paused":
                         game_state = "running"
+                elif menu_open and event.key == pygame.K_q and menu_manager.active_menu.identifier == INSIGHT_MENU_ID:
+                    game_state = "running"
+                    menu_open = False
+                    menu_manager.close_active_menu()
 
         keys = pygame.key.get_pressed()
         if game_state == "running":
@@ -208,7 +286,6 @@ def start():
         collisions = pygame.sprite.groupcollide(zombie_group, bullet_list, False, True)
 
         for zombie in collisions.keys():
-            print("Zombie hit by bullet!")
             zombie.life -= 1
             if zombie.life <= 0:
                 zombie.kill()  # Remove the zombie if life is 0
@@ -218,7 +295,6 @@ def start():
         # Check for collision between player and zombies
         collided_zombies = pygame.sprite.spritecollide(player, zombie_group, False)
         for zombie in collided_zombies:
-            print("Player collided with Zombie!")
             player.life -= 1  # Decrease player's life
             if player.life <= 0:
                 game_state = "over"
@@ -241,8 +317,12 @@ def start():
         screen.blit(player_life_text, (10, 10))
 
         # Display zombie kill count
-        zombie_life_text = font.render(f'Doomies Killed: {zombie_kills}', True, (255, 0, 0))
+        zombie_life_text = font.render(f'Zombies Killed: {zombie_kills}', True, (255, 0, 0))
         screen.blit(zombie_life_text, (10, 50))
+
+        if menu_open:
+            if menu_manager.active_menu.identifier == INSIGHT_MENU_ID or menu_manager.active_menu.identifier == QUIZ_MENU_ID:
+                game_state = "paused"
 
         if game_state == "paused":
             # Display pause menu
@@ -252,18 +332,28 @@ def start():
         if game_state == "over":
             game_over_screen()
             pygame.display.flip()
-            clock.tick(1)  # Update the screen at a slower rate
+            clock.tick(0)
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_x:
                     exit_game = True
+        
+        if zombie_kills > 0 and zombie_kills % 9 == 0:
+            menu_open = True
+            show_menu(insight_menu(insights.pop()))
+            zombie_kills += 1
+        
+        if zombie_kills > 0 and zombie_kills % 15 == 0:
+            menu_open = True
+            show_menu(quiz_menu(quiz_data.get(quiz_count),player))
+            quiz_count += 1
+            zombie_kills += 1
 
         pygame.display.flip()
-        clock.tick(30)  # Adjusted frame rate for smoother motion
+        menu_manager.display()
+        pygame.display.update()
+        clock.tick(30)            
 
-        if game_state == "over":
-            pygame.time.delay(2000)  # Delay for 2000 milliseconds (2 seconds)
-            exit_game = True
-
+# Design for menu screen
 my_theme = pygame_menu.themes.THEME_ORANGE.copy()
 my_theme.widget_font = pygame_menu.font.FONT_8BIT
 
