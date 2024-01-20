@@ -67,11 +67,10 @@ class Sprite(pygame.sprite.Sprite):
         self.image = self.images[self.frame]
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, color, width, height, start_x, start_y, dest_x, dest_y):
+    def __init__(self, start_x, start_y, dest_x, dest_y):
         super().__init__()
 
-        self.image = pygame.Surface([width, height])
-        self.image.fill(color)
+        self.image = pygame.image.load('bullet.png')
         self.rect = self.image.get_rect()
         self.rect.x = start_x
         self.rect.y = start_y
@@ -111,7 +110,7 @@ player.life = 3  # Initialize main character's life
 
 all_sprites_list.add(player)
 
-game_state = "running"  # "running" or "over"
+game_state = "running"  # "running", "paused", or "over"
 exit_game = False
 clock = pygame.time.Clock()
 
@@ -140,6 +139,7 @@ while not exit_game:
             if event.key == pygame.K_x:
                 exit_game = True
             elif event.key == pygame.K_SPACE and game_state == "running":
+
                 # Shoot a bullet towards a random zombie
                 if len(zombie_group) > 0:
                     target_zombie = random.choice(zombie_group.sprites())
@@ -148,16 +148,18 @@ while not exit_game:
                     all_sprites_list.add(bullet)
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
-        player.moveLeft(10)
-    if keys[pygame.K_RIGHT]:
-        player.moveRight(10)
-    if keys[pygame.K_DOWN]:
-        player.moveForward(10)
-    if keys[pygame.K_UP]:
-        player.moveBack(10)
-
-    player.collision_wall()
+    if game_state == "running":
+        if keys[pygame.K_LEFT]:
+            player.moveLeft(10)
+        if keys[pygame.K_RIGHT]:
+            player.moveRight(10)
+        if keys[pygame.K_DOWN]:
+            player.moveForward(10)
+        if keys[pygame.K_UP]:
+            player.moveBack(10)
+        player.collision_wall()
+        zombie.moveRandom()
+        zombie.collision_wall()
 
     # Update bullets
     bullet_list.update()
@@ -195,6 +197,11 @@ while not exit_game:
     # Display zombie kill count
     zombie_life_text = font.render(f'Zombie Killed: { zombie_kills }', True, (255, 0, 0))
     screen.blit(zombie_life_text, (10, 30))
+
+    if game_state == "paused":
+        # Display pause menu
+        pause_text = font.render("Game Paused, Press Esc to Continue", True, (0, 0, 0))
+        screen.blit(pause_text, ((WIDTH - pause_text.get_width()) // 2, (HEIGHT - pause_text.get_height()) // 2))
 
     pygame.display.flip()
     clock.tick(30)  # Adjusted frame rate for smoother motion
