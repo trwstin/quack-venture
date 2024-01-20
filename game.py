@@ -116,7 +116,7 @@ bullet_list = pygame.sprite.Group()
 
 all_sprites_list.add(player, zombie)
 
-game_state = "running"  # "running" or "over"
+game_state = "running"  # "running", "paused", or "over"
 exit_game = False
 clock = pygame.time.Clock()
 
@@ -131,24 +131,29 @@ while not exit_game:
                 exit_game = True
             elif event.key == pygame.K_SPACE and game_state == "running":
                 # Shoot a bullet towards the zombie
-                bullet = Bullet((0, 0, 255), 5, 5, player.rect.x, player.rect.y, zombie.rect.x, zombie.rect.y)
+                bullet = Bullet(player.rect.x, player.rect.y, zombie.rect.x, zombie.rect.y)
                 bullet_list.add(bullet)
                 all_sprites_list.add(bullet)
+            elif event.key == pygame.K_ESCAPE:
+                if game_state == "running":
+                    game_state = "paused"
+                elif game_state == "paused":
+                    game_state = "running"
 
     keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
-        player.moveLeft(10)
-    if keys[pygame.K_RIGHT]:
-        player.moveRight(10)
-    if keys[pygame.K_DOWN]:
-        player.moveForward(10)
-    if keys[pygame.K_UP]:
-        player.moveBack(10)
-
-    player.collision_wall()
-
-    zombie.moveRandom()
-    zombie.collision_wall()
+    
+    if game_state == "running":
+        if keys[pygame.K_LEFT]:
+            player.moveLeft(10)
+        if keys[pygame.K_RIGHT]:
+            player.moveRight(10)
+        if keys[pygame.K_DOWN]:
+            player.moveForward(10)
+        if keys[pygame.K_UP]:
+            player.moveBack(10)
+        player.collision_wall()
+        zombie.moveRandom()
+        zombie.collision_wall()
 
     # Update bullets
     bullet_list.update()
@@ -181,6 +186,11 @@ while not exit_game:
     # Display zombie's remaining life
     zombie_life_text = font.render(f'Zombie Life: {max(0, zombie.life)}', True, (0, 255, 0))
     screen.blit(zombie_life_text, (10, 50))
+
+    if game_state == "paused":
+        # Display pause menu
+        pause_text = font.render("Game Paused, Press Esc to Continue", True, (0, 0, 0))
+        screen.blit(pause_text, ((WIDTH - pause_text.get_width()) // 2, (HEIGHT - pause_text.get_height()) // 2))
 
     pygame.display.flip()
     clock.tick(30)  # Adjusted frame rate for smoother motion
