@@ -42,12 +42,24 @@ class Sprite(pygame.sprite.Sprite):
         self.image = self.images[self.frame]
         self.rect = self.image.get_rect()
         self.life = 3
+        self.direction = "right"
 
     def moveRight(self, pixels):
         self.rect.x += pixels
+        self.direction = "right"
+        self.flip_image()
 
     def moveLeft(self, pixels):
         self.rect.x -= pixels
+        self.direction = "left"
+        self.flip_image()
+
+    def flip_image(self):
+        # Flip the sprite horizontally based on direction
+        if self.direction == "left":
+            self.image = pygame.transform.flip(self.images[self.frame], True, False)
+        else:
+            self.image = self.images[self.frame]
 
     def moveForward(self, pixels):
         self.rect.y += pixels
@@ -87,10 +99,17 @@ class Sprite(pygame.sprite.Sprite):
             self.moveLeft(speed)
         elif direction == 'right' and self.rect.x < target_x:
             self.moveRight(speed)
+        
+        # Flip the zombie according to its movement direction
+        if direction == 'left':
+            self.direction = 'left'
+        elif direction == 'right':
+            self.direction = 'right'
+        self.flip_image()
 
     def update(self):
         self.frame = (self.frame + 1) % len(self.images)
-        self.image = self.images[self.frame]
+        self.flip_image()  # Ensure the image is flipped according to the current direction
 
 class Bullet(pygame.sprite.Sprite):
     def __init__(self, start_x, start_y, dest_x, dest_y):
