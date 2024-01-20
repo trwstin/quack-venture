@@ -19,6 +19,7 @@ class Sprite(pygame.sprite.Sprite):
         self.frame = 0
         self.image = self.images[self.frame]
         self.rect = self.image.get_rect()
+        self.life = 3
 
     def moveRight(self, pixels):
         self.rect.x += pixels
@@ -90,7 +91,6 @@ class Bullet(pygame.sprite.Sprite):
             self.rect.x += self.speed * dx / distance
             self.rect.y += self.speed * dy / distance
 
-
 pygame.init()
 
 size = (WIDTH, HEIGHT)
@@ -98,6 +98,7 @@ screen = pygame.display.set_mode(size)
 pygame.display.set_caption("QNA")
 
 all_sprites_list = pygame.sprite.Group()
+zombie_group = pygame.sprite.Group()
 
 background_image = pygame.image.load("map.png")
 background_rect = background_image.get_rect()
@@ -108,14 +109,7 @@ player.rect.x = 200
 player.rect.y = 300
 player.life = 3  # Initialize main character's life
 
-zombie = Sprite([f"enemies/tile{i:03d}.png" for i in range(12)], 30, 30)
-zombie.rect.x = 100
-zombie.rect.y = 100
-zombie.life = 3  # Initialize zombie's life
-
-bullet_list = pygame.sprite.Group()
-
-all_sprites_list.add(player, zombie)
+all_sprites_list.add(player)
 
 game_state = "running"  # "running" or "over"
 exit_game = False
@@ -123,6 +117,21 @@ clock = pygame.time.Clock()
 
 font = pygame.font.Font(None, 36)  # Font for displaying text
 
+# Function to respawn zombies
+def respawn_zombie():
+    zombie = Sprite([f"enemies/tile{i:03d}.png" for i in range(12)], 30, 30)
+    zombie.rect.x = random.randint(50, WIDTH - 50)
+    zombie.rect.y = random.randint(50, HEIGHT - 50)
+    all_sprites_list.add(zombie)
+    zombie_group.add(zombie)
+
+# Initial zombie respawn
+for _ in range(5):  # Spawn 5 zombies initially
+    respawn_zombie()
+
+bullet_list = pygame.sprite.Group()
+
+zombie_kills = 0
 while not exit_game:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -131,10 +140,12 @@ while not exit_game:
             if event.key == pygame.K_x:
                 exit_game = True
             elif event.key == pygame.K_SPACE and game_state == "running":
-                # Shoot a bullet towards the zombie
-                bullet = Bullet((0, 0, 255), 5, 5, player.rect.x, player.rect.y, zombie.rect.x, zombie.rect.y)
-                bullet_list.add(bullet)
-                all_sprites_list.add(bullet)
+                # Shoot a bullet towards a random zombie
+                if len(zombie_group) > 0:
+                    target_zombie = random.choice(zombie_group.sprites())
+                    bullet = Bullet((0, 0, 255), 5, 5, player.rect.x, player.rect.y, target_zombie.rect.x, target_zombie.rect.y)
+                    bullet_list.add(bullet)
+                    all_sprites_list.add(bullet)
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT]:
@@ -148,21 +159,23 @@ while not exit_game:
 
     player.collision_wall()
 
-    zombie.moveRandom()
-    zombie.collision_wall()
-
     # Update bullets
     bullet_list.update()
 
-    # Check for collision between bullet and zombie
-    if pygame.sprite.spritecollide(zombie, bullet_list, True):
-        print("Zombie hit by bullet!")
-        zombie.life -= 1  # Decrease zombie's life
-        if zombie.life <= 0:
-            game_state = "over"
+    # Check for collision between bullets and zombies
+    collisions = pygame.sprite.groupcollide(zombie_group, bullet_list, False, True)
+    
 
-    # Check for collision between player and zombie
-    if pygame.sprite.collide_rect(player, zombie):
+    for zombie in collisions.keys():
+        print("Zombie hit by bullet!")
+        zombie.life -= 1
+        if zombie.life <= 0:
+            zombie.kill()  # Remove the zombie if life is 0
+            zombie_kills += 1
+            respawn_zombie()  # Respawn a new zombie
+
+    # Check for collision between player and zombies
+    if pygame.sprite.spritecollide(player, zombie_group, False):
         print("Player collided with Zombie!")
         player.life -= 1  # Decrease player's life
         if player.life <= 0:
@@ -179,9 +192,9 @@ while not exit_game:
     player_life_text = font.render(f'Player Life: {max(0, player.life)}', True, (255, 0, 0))
     screen.blit(player_life_text, (10, 10))
 
-    # Display zombie's remaining life
-    zombie_life_text = font.render(f'Zombie Life: {max(0, zombie.life)}', True, (0, 255, 0))
-    screen.blit(zombie_life_text, (10, 50))
+    # Display zombie kill count
+    zombie_life_text = font.render(f'Zombie Killed: { zombie_kills }', True, (255, 0, 0))
+    screen.blit(zombie_life_text, (10, 30))
 
     pygame.display.flip()
     clock.tick(30)  # Adjusted frame rate for smoother motion
