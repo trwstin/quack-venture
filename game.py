@@ -11,6 +11,7 @@ from quiz_data import *
 pygame.init()
 pygamepopup.init()
 
+# Initialise mixer for BGM
 pygame.mixer.init()
 pygame.mixer.music.load('assets/music/bgm.ogg')
 pygame.mixer.music.play(-1)
@@ -68,12 +69,13 @@ class Sprite(pygame.sprite.Sprite):
 
         if self.rect.top < 0:
             self.rect.top = 0
-            self.moveForward(10)  # check top logic
+            self.moveForward(10)
         elif self.rect.bottom > HEIGHT:
             self.rect.bottom = HEIGHT
             self.moveBack(10)
 
     def moveRandom(self, target_x, target_y):
+        # Random movement for zombies
         direction = random.choice(['up', 'down', 'left', 'right'])
         speed = 10
 
@@ -114,11 +116,11 @@ class Bullet(pygame.sprite.Sprite):
             self.rect.x += self.speed * dx / distance
             self.rect.y += self.speed * dy / distance
 
-# Load player sprites
+# Load Quackers' sprites
 player = Sprite([f"assets/sprites/player/tile{i:03d}.png" for i in range(12)], 30, 30)
 player.rect.x = 200
 player.rect.y = 300
-player.life = 3  # Initialize main character's life
+player.life = 3 # Initialize Quackers' HP
 
 all_sprites_list.add(player)
 
@@ -150,7 +152,6 @@ def quiz_menu(dict, player):
                 Button(
                         title=dict.get('answer'),
                         callback=lambda: player.addLife(),
-                        # Correct Menu Popup
                 )
             ],
             [
@@ -178,30 +179,30 @@ def quiz_menu(dict, player):
     )
     return quiz_menu
 
-# For insights
+# Load insights into a list of strings
 def txt_to_list(file_path):
     with open(file_path, 'r') as file:
         lines = file.read().splitlines()
     return lines
 
-# Function for sound effects
+# Function for playing sound effects
 def sound_effect(sound_file):
     pygame.mixer.init()
     pygame.mixer.Sound(sound_file)
     pygame.mixer.Sound(sound_file).play()
 
-# Function to respawn zombies
+# Function to (re)spawn zombies
 def respawn_zombie():
     enemy = random.randint(0, 2)
     zombie = Sprite(["assets/sprites/enemies/{:d}/".format(enemy) + f"tile{i:03d}.png" for i in range(12)], 34, 30)
     
-    # Ensure the zombie spawns a decent distance away from the player
+    # Ensure the zombie spawns a decent distance away from Quacker
     min_distance = 200
     while True:
         zombie.rect.x = random.randint(100, WIDTH - 50)
         zombie.rect.y = random.randint(100, HEIGHT - 50)
         
-        # Calculate the distance between the zombie and the player
+        # Calculates the distance between the zombie and Quacker
         distance = ((zombie.rect.x - player.rect.x) ** 2 + (zombie.rect.y - player.rect.y) ** 2) ** 0.5
         
         if distance >= min_distance:
@@ -210,25 +211,24 @@ def respawn_zombie():
     all_sprites_list.add(zombie)
     zombie_group.add(zombie)
 
-# Function for game over screen
+# You monster.
 def game_over_screen():
     game_over_text = font.render("QUACKERS HAS DIED", True, (255, 0, 0))
     screen.blit(game_over_text, ((WIDTH - game_over_text.get_width()) // 2, (HEIGHT - game_over_text.get_height()) // 2))
 
+# Good job!
 def congratulations_screen():
     rainbow_colors = [(255, 0, 0), (255, 165, 0), (255, 255, 0), (0, 255, 0), (0, 0, 255), (75, 0, 130), (128, 0, 128)]
 
-    # Fill the screen with a rainbow pattern
+    # Rainbow screen
     for i, color in enumerate(rainbow_colors):
         rect = pygame.Rect(0, i * (HEIGHT // len(rainbow_colors)), WIDTH, HEIGHT // len(rainbow_colors))
         pygame.draw.rect(screen, color, rect)
 
-    # Display the congratulations text on top
     congrats_text = font.render("Congratulations! Quackers is now financially literate :)", True, (0, 0, 0))
     screen.blit(congrats_text, ((WIDTH - congrats_text.get_width()) // 2, (HEIGHT - congrats_text.get_height()) // 2))
 
-
-# Display a menu
+# Display a popup
 def show_menu(menu):
     if menu_manager.active_menu is not None:
         if menu_manager.active_menu.identifier == menu.identifier:
@@ -238,15 +238,15 @@ def show_menu(menu):
     menu_manager.open_menu(menu)
 
 def start():
-    # Initial zombie respawn
+    # Initial number of zombies spawned
     NUM_ZOMBIES = 7
-    for _ in range(NUM_ZOMBIES): # Spawn 5 zombies initially
+    for _ in range(NUM_ZOMBIES):
         respawn_zombie()
 
     bullet_list = pygame.sprite.Group()
 
     zombie_kills = 0
-    game_state = "running" # "running", "paused", or "over"
+    game_state = "running"
     exit_game = False
     menu_open = False
     insights = txt_to_list('assets/insights.txt')
@@ -259,8 +259,10 @@ def start():
                 exit_game = True
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_x:
+                    # Exits game if 'X' is pressed
                     exit_game = True
                 elif event.key == pygame.K_SPACE and game_state == "running":
+                    # Shoots Quack-blasts when 'Spacebar' is pressed
                     if len(zombie_group) > 0:
                         sound_effect('assets/music/quack.mp3')
                         target_zombie = random.choice(zombie_group.sprites())
@@ -268,17 +270,21 @@ def start():
                         bullet_list.add(bullet)
                         all_sprites_list.add(bullet)
                 elif event.key == pygame.K_ESCAPE:
+                    # 'Escape' pauses the game
                     if game_state == "running":
                         game_state = "paused"
                     elif game_state == "paused":
                         game_state = "running"
                 elif menu_open and event.key == pygame.K_q and menu_manager.active_menu.identifier == INSIGHT_MENU_ID:
+                    # Exit current popup with 'Q'
                     game_state = "running"
                     menu_open = False
                     menu_manager.close_active_menu()
             elif event.type == pygame.MOUSEMOTION:
+                # For highlight effect when mouse hovers over button
                 menu_manager.motion(event.pos)
             elif event.type == pygame.MOUSEBUTTONUP:
+                # Triggers click event upon mouse click
                 if event.button == 1 or event.button == 3:
                     game_state = "running"
                     menu_manager.click(event.button, event.pos)
@@ -286,6 +292,7 @@ def start():
 
         keys = pygame.key.get_pressed()
         if game_state == "running":
+            # Standard arrow bindings for movement
             if keys[pygame.K_LEFT]:
                 player.moveLeft(10)
             if keys[pygame.K_RIGHT]:
@@ -296,12 +303,11 @@ def start():
                 player.moveBack(10)
             player.collision_wall()
 
-            # Update zombies
+            # Zombies will move towards Quacker
             for zombie in zombie_group:
                 zombie.moveRandom(player.rect.x, player.rect.y)
                 zombie.collision_wall()
 
-        # Update bullets
         bullet_list.update()
 
         # Check for collision between bullets and zombies
@@ -310,22 +316,22 @@ def start():
         for zombie in collisions.keys():
             zombie.life -= 1
             if zombie.life <= 0:
-                zombie.kill()  # Remove the zombie if life is 0
+                zombie.kill() # Remove the zombie if life is 0
                 zombie_kills += 1
-                respawn_zombie()  # Respawn a new zombie
+                respawn_zombie() # Respawn a new zombie when one dies
 
-        # Check for collision between player and zombies
+        # Check for collision between Quacker and zombies
         collided_zombies = pygame.sprite.spritecollide(player, zombie_group, False)
         for zombie in collided_zombies:
-            player.life -= 1  # Decrease player's life
+            player.life -= 1 # Decrease Quackers' HP when hit
             if player.life <= 0:
                 game_state = "over"
             else:
-                # If player is still alive, instantly kill the zombie
+                # If Quackers is still alive after collision, instantly kill the zombie
                 zombie.life = 0
                 zombie.kill()
                 zombie_kills += 1
-                respawn_zombie()  # Respawn a new zombie
+                respawn_zombie()
 
         all_sprites_list.update()
 
@@ -334,7 +340,7 @@ def start():
         screen.blit(background_image, background_rect)
         all_sprites_list.draw(screen)
 
-        # Display main character's remaining life
+        # Display Quackers' remaining HP
         player_life_text = font.render(f'Quackers HP: {max(0, player.life)}', True, (0, 255, 0))
         screen.blit(player_life_text, (10, 10))
 
@@ -342,7 +348,7 @@ def start():
         zombie_life_text = font.render(f'Zombies Killed: {zombie_kills}', True, (255, 0, 0))
         screen.blit(zombie_life_text, (10, 40))
 
-        # Controls
+        # Controls Tooltip
         controls_1 = font.render('Arrow Keys: Move', True, (0, 0, 255))
         screen.blit(controls_1, (580, 10))
         controls_2 = font.render('Spacebar: Quack', True, (0, 0, 255))
@@ -369,17 +375,20 @@ def start():
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_x:
                     exit_game = True
         
+        # Quackers' gains new financial insight every 9 kills
         if zombie_kills > 0 and zombie_kills % 9 == 0:
             menu_open = True
             show_menu(insight_menu(insights.pop()))
             zombie_kills += 1
         
+        # Quackers' financial literacy is challenged every 15 kills
         if zombie_kills > 0 and zombie_kills % 15 == 0:
             menu_open = True
             show_menu(quiz_menu(quiz_data.get(quiz_count),player))
             quiz_count += 1
             zombie_kills += 1
         
+        # Game ends after completing 10 challenges
         if quiz_count == 10 and menu_manager.active_menu is None:
             zombie_kills = 0
             congratulations_screen()
@@ -392,7 +401,7 @@ def start():
         pygame.display.flip()
         menu_manager.display()
         pygame.display.update()
-        clock.tick(30)            
+        clock.tick(30) # Represents FPS
 
 # Design for menu screen
 my_theme = pygame_menu.themes.THEME_ORANGE.copy()
