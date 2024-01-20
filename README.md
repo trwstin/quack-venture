@@ -1,4 +1,6 @@
-![alt text](https://i.ibb.co/Ph05nSP/download.jpg)
+<p align="center">
+<img src="https://i.ibb.co/Ph05nSP/download.jpg"></img>
+</p>
 
 ## Inspiration
 The inspiration behind Quackers' Adventure stemmed from the desire to create an engaging and entertaining game that seamlessly incorporates elements of both action and education. Drawing inspiration from classic arcade games and the need for a novel approach to financial literacy education, the project aimed to captivate players while imparting valuable insights on financial topics.
@@ -28,3 +30,6 @@ The use of Pygame and Pygamepopup provided valuable experience in leveraging ext
 
 ## What's next for Quackers' Adventure
 The future roadmap for Quackers' Adventure involves expanding the game's educational content with additional financial topics and challenges. Further refinement of the game mechanics, introduction of new enemy types, and the development of diverse levels will enhance the overall gameplay experience. Additionally, exploring multiplayer capabilities and incorporating user feedback will contribute to the continuous improvement and growth of Quackers' Adventure.
+
+## How to play
+Clone the repo and run game.py, have fun!
