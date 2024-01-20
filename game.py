@@ -143,7 +143,7 @@ while not exit_game:
                 # Shoot a bullet towards a random zombie
                 if len(zombie_group) > 0:
                     target_zombie = random.choice(zombie_group.sprites())
-                    bullet = Bullet((0, 0, 255), 5, 5, player.rect.x, player.rect.y, target_zombie.rect.x, target_zombie.rect.y)
+                    bullet = Bullet(player.rect.x, player.rect.y, target_zombie.rect.x, target_zombie.rect.y)
                     bullet_list.add(bullet)
                     all_sprites_list.add(bullet)
 
@@ -158,8 +158,6 @@ while not exit_game:
         if keys[pygame.K_UP]:
             player.moveBack(10)
         player.collision_wall()
-        zombie.moveRandom()
-        zombie.collision_wall()
 
     # Update bullets
     bullet_list.update()
