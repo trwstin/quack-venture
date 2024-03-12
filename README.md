@@ -1,6 +1,4 @@
-<p align="center">
-<img src="https://i.ibb.co/Ph05nSP/download.jpg"></img>
-</p>
+![download](https://github.com/trwstin/quack-venture/assets/68576751/4f9e8976-40e3-4907-9014-665f633fd5fa)
 
 ## Inspiration
 The inspiration behind Quackers' Adventure stemmed from the desire to create an engaging and entertaining game that seamlessly incorporates elements of both action and education. Drawing inspiration from classic arcade games and the need for a novel approach to financial literacy education, the project aimed to captivate players while imparting valuable insights on financial topics.
